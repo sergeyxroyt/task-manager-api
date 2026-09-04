@@ -5,6 +5,14 @@ from common.serializers import paginated_serializer
 from .models import Comment
 
 
+class CommentCreateSerializer(serializers.Serializer[dict[str, str]]):
+    content = serializers.CharField()
+
+
+class CommentCreateResponseSerializer(serializers.Serializer[dict[str, int]]):
+    id = serializers.IntegerField()
+
+
 class CommentSerializer(serializers.ModelSerializer[Comment]):
     author_id = serializers.IntegerField(read_only=True)
 

@@ -10,6 +10,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from common.pagination import PaginatedDTO, PaginationDTO
 from tasks.exceptions import TaskNotFoundError
 from tasks.models import Task
+from users.models import User
 from users.tests import DefaultTestUser
 
 from .models import Comment
@@ -24,6 +25,25 @@ class DefaultTestComment:
 
 
 class CommentRepositoryTests(SimpleTestCase):
+    @patch("comments.repositories.Comment.objects.create")
+    def test_create_returns_created_comment(self, create_comment: Mock) -> None:
+        comment = Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+        create_comment.return_value = comment
+        author = User(id=DefaultTestUser.id, username=DefaultTestUser.username)
+
+        result = CommentRepository().create(
+            task_id=42,
+            author=author,
+            content=DefaultTestComment.content,
+        )
+
+        self.assertIs(result, comment)
+        create_comment.assert_called_once_with(
+            task_id=42,
+            author=author,
+            content=DefaultTestComment.content,
+        )
+
     @patch("comments.repositories.Comment.objects.filter")
     def test_list_by_task_returns_paginated_comments(
         self, filter_comments: Mock
@@ -54,6 +74,45 @@ class CommentRepositoryTests(SimpleTestCase):
 
 
 class CommentServiceTests(SimpleTestCase):
+    @patch("comments.services.TaskRepository")
+    @patch("comments.services.CommentRepository")
+    def test_create_checks_task_and_creates_comment(
+        self, repository_class: Mock, task_repository_class: Mock
+    ) -> None:
+        comment = Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+        repository_class.return_value.create.return_value = comment
+        author = User(id=DefaultTestUser.id, username=DefaultTestUser.username)
+
+        result = CommentService().create(
+            task_id=42,
+            author=author,
+            content=DefaultTestComment.content,
+        )
+
+        self.assertIs(result, comment)
+        task_repository_class.return_value.get_by_id.assert_called_once_with(42)
+        repository_class.return_value.create.assert_called_once_with(
+            task_id=42,
+            author=author,
+            content=DefaultTestComment.content,
+        )
+
+    @patch("comments.services.TaskRepository")
+    @patch("comments.services.CommentRepository")
+    def test_create_does_not_create_comment_for_missing_task(
+        self, repository_class: Mock, task_repository_class: Mock
+    ) -> None:
+        task_repository_class.return_value.get_by_id.side_effect = TaskNotFoundError
+
+        with self.assertRaises(TaskNotFoundError):
+            CommentService().create(
+                task_id=42,
+                author=User(id=DefaultTestUser.id),
+                content=DefaultTestComment.content,
+            )
+
+        repository_class.return_value.create.assert_not_called()
+
     @patch("comments.services.TaskRepository")
     @patch("comments.services.CommentRepository")
     def test_list_by_task_checks_task_and_returns_comments(
@@ -129,6 +188,31 @@ class CommentListIntegrationTests(TestCase):
             {"page": 1, "per_page": 2, "total": 3, "total_pages": 2},
         )
 
+    def test_create_returns_comment_id(self) -> None:
+        response = self.client.post(
+            self.url,
+            {"content": "New comment"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        comment_id = response.json()["id"]
+        self.assertTrue(Comment.objects.filter(pk=comment_id).exists())
+        comment = Comment.objects.get(pk=comment_id)
+        self.assertEqual(comment.task_id, self.task.pk)
+        self.assertEqual(comment.author_id, self.user.pk)
+        self.assertEqual(comment.content, "New comment")
+
+    def test_create_for_missing_task_returns_404(self) -> None:
+        response = self.client.post(
+            self.url_template.format(task_id=999999),
+            {"content": "New comment"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Task not found.")
+
 
 class CommentListApiTests(TestCase):
     url = "/api/tasks/42/comments/"
@@ -138,6 +222,13 @@ class CommentListApiTests(TestCase):
 
     def test_unauthenticated_user_returns_401(self) -> None:
         request = self.factory.get(self.url)
+
+        response = CommentListView.as_view()(request, task_id=42)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_user_cannot_create_comment(self) -> None:
+        request = self.factory.post(self.url, {"content": "Comment"}, format="json")
 
         response = CommentListView.as_view()(request, task_id=42)
 

@@ -1,4 +1,5 @@
 from common.pagination import PaginatedDTO
+from users.models import User
 from tasks.repositories import TaskRepository
 
 from .models import Comment
@@ -13,6 +14,14 @@ class CommentService:
     ) -> None:
         self.repository = repository or CommentRepository()
         self.task_repository = task_repository or TaskRepository()
+
+    def create(self, *, task_id: int, author: User, content: str) -> Comment:
+        self.task_repository.get_by_id(task_id)
+        return self.repository.create(
+            task_id=task_id,
+            author=author,
+            content=content,
+        )
 
     def list_by_task(
         self, *, task_id: int, limit: int, offset: int
