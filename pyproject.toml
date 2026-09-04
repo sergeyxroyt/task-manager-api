@@ -6,14 +6,23 @@ readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
     "django==6.0.3",
+    "django-environ==0.14.0",
     "djangorestframework==3.16.1",
+    "djangorestframework-simplejwt==5.5.1",
+    "drf-spectacular==0.30.0",
+    "psycopg[binary]==3.3.5",
+    "pyyaml==6.0.3",
+    "uritemplate==4.2.0",
+    "uvicorn[standard]==0.35.0",
 ]
 
 [dependency-groups]
 dev = [
-    "django-stubs>=6.1.0",
+    "django-stubs==6.1.0",
+    "djangorestframework-stubs==3.18.1",
     "mypy==1.19.1",
     "ruff==0.15.0",
+    "testcontainers[postgres]==4.15.0",
 ]
 
 [tool.ruff]
@@ -22,6 +31,7 @@ line-length = 88
 
 [tool.mypy]
 python_version = "3.14"
+plugins = ["mypy_django_plugin.main"]
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_untyped_defs = true
@@ -30,4 +40,12 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_ignores = true
 exclude = ["migrations"]
-packages = ["src"]
+files = ["src"]
+mypy_path = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["environ"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
