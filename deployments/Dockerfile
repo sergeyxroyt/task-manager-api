@@ -10,4 +10,6 @@ COPY src ./src
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "config.asgi:application", "--app-dir", "/app/src", "--host", "0.0.0.0", "--port", "8000"]
+ENV WEB_CONCURRENCY=2
+
+CMD ["sh", "-c", "exec uv run gunicorn config.wsgi:application --chdir /app/src --bind 0.0.0.0:8000 --workers ${WEB_CONCURRENCY}"]

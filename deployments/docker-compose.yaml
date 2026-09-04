@@ -60,6 +60,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

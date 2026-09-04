@@ -3,17 +3,18 @@ from django.db import models
 
 
 class Task(models.Model):
+    class Status(models.TextChoices):
+        TODO = "todo", "To do"
+        IN_PROGRESS = "in_progress", "In progress"
+        DONE = "done", "Done"
+
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
     status = models.CharField(
         max_length=20,
-        choices=[
-            ("todo", "To do"),
-            ("in_progress", "In progress"),
-            ("done", "Done"),
-        ],
-        default="todo",
+        choices=Status,
+        default=Status.TODO,
     )
 
     creator = models.ForeignKey(

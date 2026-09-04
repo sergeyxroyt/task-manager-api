@@ -6,9 +6,48 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 
+from common.views import QueryParamsAPIView
+
 from .exceptions import TaskNotFoundError
-from .serializers import ErrorSerializer, TaskSerializer
+from .serializers import (
+    ErrorSerializer,
+    TaskListQuerySerializer,
+    TaskListResponseSerializer,
+    TaskSerializer,
+)
 from .services import TaskService
+
+
+class TaskListView(QueryParamsAPIView):
+    permission_classes = [IsAuthenticated]
+    query_serializer_class = TaskListQuerySerializer
+
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
+        self.service = TaskService()
+
+    @extend_schema(
+        parameters=[TaskListQuerySerializer],
+        responses={
+            200: TaskListResponseSerializer,
+            400: OpenApiResponse(response=ErrorSerializer, description="Invalid query"),
+            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+        },
+    )
+    def get(self, request: Request) -> Response:
+        query = self.get_query_params(request)
+
+        tasks = self.service.list(
+            limit=query["limit"],
+            offset=query["offset"],
+            statuses=query["statuses"],
+        )
+        return Response(
+            TaskListResponseSerializer(
+                {"data": tasks.data, "pagination": tasks.pagination}
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class TaskDetailView(APIView):

@@ -1,19 +1,15 @@
+from typing import Any
+
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
+
+from common.serializers import paginated_serializer
 
 from .models import Task
 
 
 class TaskSerializer(serializers.ModelSerializer[Task]):
-    creator_id = serializers.PrimaryKeyRelatedField(
-        source="creator", queryset=get_user_model().objects.all()
-    )
-    assignee_id = serializers.PrimaryKeyRelatedField(
-        source="assignee",
-        queryset=get_user_model().objects.all(),
-        required=False,
-        allow_null=True,
-    )
+    creator_id = serializers.IntegerField(read_only=True)
+    assignee_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Task
@@ -31,3 +27,34 @@ class TaskSerializer(serializers.ModelSerializer[Task]):
 
 class ErrorSerializer(serializers.Serializer[dict[str, str]]):
     detail = serializers.CharField()
+
+
+class TaskListQuerySerializer(serializers.Serializer[dict[str, object]]):
+    limit = serializers.IntegerField(
+        min_value=1, max_value=100, required=False, default=20
+    )
+    offset = serializers.IntegerField(min_value=0, required=False, default=0)
+    statuses = serializers.ListField(
+        child=serializers.ChoiceField(choices=Task.Status.choices),
+        required=False,
+        default=list,
+    )
+
+    def to_internal_value(self, data: Any) -> dict[str, object]:
+        if hasattr(data, "getlist"):
+            query_params = data.copy()
+            raw_statuses = query_params.getlist("status")
+            raw_statuses.extend(query_params.getlist("statuses"))
+            statuses = [
+                status_value.strip()
+                for value in raw_statuses
+                for status_value in value.split(",")
+                if status_value.strip()
+            ]
+            query_params.setlist("statuses", statuses)
+            data = query_params
+
+        return dict(super().to_internal_value(data))
+
+
+TaskListResponseSerializer = paginated_serializer(TaskSerializer)
