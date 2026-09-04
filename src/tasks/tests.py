@@ -1,8 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from typing import ClassVar
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from common.pagination import PaginatedDTO, PaginationDTO
@@ -14,25 +16,34 @@ from .services import TaskService
 from .views import TaskListView
 from users.models import User
 
+from users.tests import DefaultTestUser
+
+
+class DefaultTestTask:
+    id: ClassVar[int] = 42
+    title: ClassVar[str] = "Prepare report"
+    description: ClassVar[str] = "Monthly report"
+    status: ClassVar[str] = Task.Status.IN_PROGRESS
+
 
 class TaskRepositoryTests(SimpleTestCase):
     @patch("tasks.repositories.Task.objects.create")
     def test_create_returns_created_task(self, create_task: Mock) -> None:
-        task = Task(id=42, title="Prepare report")
+        task = Task(id=DefaultTestTask.id, title=DefaultTestTask.title)
         create_task.return_value = task
 
         result = TaskRepository().create(
-            title="Prepare report",
-            description="Monthly report",
-            creator=User(id=7, username="creator"),
+            title=DefaultTestTask.title,
+            description=DefaultTestTask.description,
+            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
             assignee_id=8,
         )
 
         self.assertIs(result, task)
         create_task.assert_called_once_with(
-            title="Prepare report",
-            description="Monthly report",
-            creator=User(id=7, username="creator"),
+            title=DefaultTestTask.title,
+            description=DefaultTestTask.description,
+            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
             assignee_id=8,
         )
 
@@ -68,7 +79,7 @@ class TaskRepositoryTests(SimpleTestCase):
 
     @patch("tasks.repositories.Task.objects.get")
     def test_get_by_id_returns_task(self, get_task: Mock) -> None:
-        task = Task(id=42, title="Prepare report")
+        task = Task(id=DefaultTestTask.id, title=DefaultTestTask.title)
         get_task.return_value = task
 
         result = TaskRepository().get_by_id(42)
@@ -145,22 +156,22 @@ class TaskServiceTests(SimpleTestCase):
         repository = repository_class.return_value
         user_repository = user_repository_class.return_value
         user_repository.is_exists.return_value = True
-        task = Task(id=42, title="Prepare report")
+        task = Task(id=DefaultTestTask.id, title=DefaultTestTask.title)
         repository.create.return_value = task
 
         result = TaskService().create(
-            title="Prepare report",
-            description="Monthly report",
-            user=User(id=7, username="creator"),
+            title=DefaultTestTask.title,
+            description=DefaultTestTask.description,
+            user=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
             assignee_id=8,
         )
 
         self.assertIs(result, task)
         user_repository.is_exists.assert_called_once_with(8)
         repository.create.assert_called_once_with(
-            title="Prepare report",
-            description="Monthly report",
-            creator=User(id=7, username="creator"),
+            title=DefaultTestTask.title,
+            description=DefaultTestTask.description,
+            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
             assignee_id=8,
         )
 
@@ -174,9 +185,9 @@ class TaskServiceTests(SimpleTestCase):
 
         with self.assertRaises(AssigneeNotFoundError):
             TaskService(repository=repository_class.return_value).create(
-                title="Prepare report",
-                description="Monthly report",
-                user=User(id=7, username="creator"),
+                title=DefaultTestTask.title,
+                description=DefaultTestTask.description,
+                user=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
                 assignee_id=8,
             )
 
@@ -186,7 +197,7 @@ class TaskServiceTests(SimpleTestCase):
     def test_get_by_id_returns_task_from_repository(
         self, repository_class: Mock
     ) -> None:
-        task = Task(id=42, title="Prepare report")
+        task = Task(id=DefaultTestTask.id, title=DefaultTestTask.title)
         repository = repository_class.return_value
         repository.get_by_id.return_value = task
         service = TaskService()
@@ -294,24 +305,25 @@ class TaskServiceTests(SimpleTestCase):
 
 
 class TaskDetailApiTests(TestCase):
+    task_url_template: ClassVar[str] = "/api/tasks/{task_id}/"
     user: ClassVar[User]
     task: ClassVar[Task]
 
     @classmethod
     def setUpTestData(cls) -> None:
         cls.user = get_user_model().objects.create_user(
-            username="task-user", password="test-password"
+            username="task-user", password=DefaultTestUser.password
         )
         cls.task = Task.objects.create(
-            title="Prepare report",
-            description="Prepare the monthly report.",
-            status="in_progress",
+            title=DefaultTestTask.title,
+            description=DefaultTestTask.description,
+            status=DefaultTestTask.status,
             creator=cls.user,
         )
 
     def setUp(self) -> None:
         self.client: APIClient = APIClient()
-        self.url = f"/api/tasks/{self.task.pk}/"
+        self.url = self.task_url_template.format(task_id=self.task.pk)
 
     def test_authenticated_user_can_get_task(self) -> None:
         self.client.force_authenticate(user=self.user)
@@ -329,7 +341,7 @@ class TaskDetailApiTests(TestCase):
     def test_missing_task_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.get("/api/tasks/999999/")
+        response = self.client.get(self.task_url_template.format(task_id=999999))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.json()["detail"], "Task not found.")
@@ -342,7 +354,7 @@ class TaskDetailApiTests(TestCase):
     def test_authenticated_user_can_patch_all_task_fields(self) -> None:
         self.client.force_authenticate(user=self.user)
         assignee = get_user_model().objects.create_user(
-            username="patch-assignee", password="test-password"
+            username="patch-assignee", password=DefaultTestUser.password
         )
 
         response = self.client.patch(
@@ -367,7 +379,7 @@ class TaskDetailApiTests(TestCase):
     def test_patch_without_assignee_leaves_existing_assignee_unchanged(self) -> None:
         self.client.force_authenticate(user=self.user)
         assignee = get_user_model().objects.create_user(
-            username="existing-assignee", password="test-password"
+            username="existing-assignee", password=DefaultTestUser.password
         )
         self.task.assignee = assignee
         self.task.save(update_fields=["assignee"])
@@ -383,7 +395,7 @@ class TaskDetailApiTests(TestCase):
     def test_patch_with_null_assignee_removes_existing_assignee(self) -> None:
         self.client.force_authenticate(user=self.user)
         assignee = get_user_model().objects.create_user(
-            username="remove-assignee", password="test-password"
+            username="remove-assignee", password=DefaultTestUser.password
         )
         self.task.assignee = assignee
         self.task.save(update_fields=["assignee"])
@@ -412,7 +424,9 @@ class TaskDetailApiTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
         response = self.client.patch(
-            "/api/tasks/999999/", {"title": "Updated"}, format="json"
+            self.task_url_template.format(task_id=999999),
+            {"title": "Updated"},
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -443,7 +457,7 @@ class TaskDetailApiTests(TestCase):
     def test_delete_missing_task_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.delete("/api/tasks/999999/")
+        response = self.client.delete(self.task_url_template.format(task_id=999999))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.json()["detail"], "Task not found.")
@@ -455,16 +469,17 @@ class TaskDetailApiTests(TestCase):
 
 
 class TaskListIntegrationTests(TestCase):
+    tasks_url: ClassVar[str] = "/api/tasks/"
     user: ClassVar[User]
     assignee: ClassVar[User]
 
     @classmethod
     def setUpTestData(cls) -> None:
         cls.user = get_user_model().objects.create_user(
-            username="list-user", password="test-password"
+            username="list-user", password=DefaultTestUser.password
         )
         cls.assignee = get_user_model().objects.create_user(
-            username="list-assignee", password="test-password"
+            username="list-assignee", password=DefaultTestUser.password
         )
         for task_status, title in (
             ("todo", "First task"),
@@ -482,7 +497,7 @@ class TaskListIntegrationTests(TestCase):
     def setUp(self) -> None:
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
-        self.url = "/api/tasks/"
+        self.url = self.tasks_url
 
     def test_list_supports_limit_and_offset(self) -> None:
         response = self.client.get(self.url, {"limit": 2, "offset": 1})
@@ -500,6 +515,27 @@ class TaskListIntegrationTests(TestCase):
                 "total": 4,
                 "total_pages": 2,
             },
+        )
+
+    def test_list_sorts_tasks_by_created_at_descending(self) -> None:
+        now = timezone.now()
+        Task.objects.filter(title="First task").update(
+            created_at=now - timedelta(minutes=3)
+        )
+        Task.objects.filter(title="Second task").update(
+            created_at=now - timedelta(minutes=2)
+        )
+        Task.objects.filter(title="Third task").update(
+            created_at=now - timedelta(minutes=1)
+        )
+        Task.objects.filter(title="Fourth task").update(created_at=now)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [task["title"] for task in response.json()["data"]],
+            ["Fourth task", "Third task", "Second task", "First task"],
         )
 
     def test_list_paginates_without_skipping_or_repeating_tasks(self) -> None:
@@ -588,10 +624,12 @@ class TaskListIntegrationTests(TestCase):
 
 
 class TaskListApiTests(TestCase):
+    tasks_url: ClassVar[str] = "/api/tasks/"
+
     def setUp(self) -> None:
         self.factory = APIRequestFactory()
         self.user = get_user_model().objects.create_user(
-            username="api-list-user", password="test-password"
+            username="api-list-user", password=DefaultTestUser.password
         )
 
     @patch("tasks.views.TaskService")
@@ -604,7 +642,7 @@ class TaskListApiTests(TestCase):
             pagination=PaginationDTO(page=3, per_page=5, total=12, total_pages=3),
         )
         request = self.factory.get(
-            "/api/tasks/?limit=5&offset=10&status=todo,in_progress"
+            f"{self.tasks_url}?limit=5&offset=10&status=todo,in_progress"
         )
         force_authenticate(request, user=self.user)
 
@@ -616,7 +654,7 @@ class TaskListApiTests(TestCase):
         )
 
     def test_get_rejects_invalid_pagination_parameters(self) -> None:
-        request = self.factory.get("/api/tasks/?limit=0&offset=-1")
+        request = self.factory.get(f"{self.tasks_url}?limit=0&offset=-1")
         force_authenticate(request, user=self.user)
 
         response = TaskListView.as_view()(request)
@@ -624,14 +662,14 @@ class TaskListApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_unauthenticated_user_returns_401(self) -> None:
-        request = self.factory.get("/api/tasks/")
+        request = self.factory.get(self.tasks_url)
 
         response = TaskListView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_unauthenticated_user_cannot_create_task(self) -> None:
-        request = self.factory.post("/api/tasks/", {}, format="json")
+        request = self.factory.post(self.tasks_url, {}, format="json")
 
         response = TaskListView.as_view()(request)
 
@@ -647,7 +685,7 @@ class TaskListApiTests(TestCase):
 
         for body in invalid_bodies:
             with self.subTest(body=body):
-                request = self.factory.post("/api/tasks/", body, format="json")
+                request = self.factory.post(self.tasks_url, body, format="json")
                 force_authenticate(request, user=self.user)
 
                 response = TaskListView.as_view()(request)

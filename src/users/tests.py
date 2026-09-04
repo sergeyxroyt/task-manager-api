@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.test import TestCase
@@ -5,6 +7,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from .repositories import UserRepository
+
+
+class DefaultTestUser:
+    id: ClassVar[int] = 7
+    username: ClassVar[str] = "creator"
+    password: ClassVar[str] = "test-password"
 
 
 class AuthApiTestCase(TestCase):

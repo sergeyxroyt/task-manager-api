@@ -1,0 +1,144 @@
+from typing import ClassVar
+from unittest.mock import Mock, patch
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
+from django.test import SimpleTestCase, TestCase
+from rest_framework import status
+from rest_framework.test import APIClient, APIRequestFactory
+
+from common.pagination import PaginatedDTO, PaginationDTO
+from tasks.exceptions import TaskNotFoundError
+from tasks.models import Task
+from users.tests import DefaultTestUser
+
+from .models import Comment
+from .repositories import CommentRepository
+from .services import CommentService
+from .views import CommentListView
+
+
+class DefaultTestComment:
+    id: ClassVar[int] = 2
+    content: ClassVar[str] = "Comment"
+
+
+class CommentRepositoryTests(SimpleTestCase):
+    @patch("comments.repositories.Comment.objects.filter")
+    def test_list_by_task_returns_paginated_comments(
+        self, filter_comments: Mock
+    ) -> None:
+        queryset = filter_comments.return_value
+        queryset.count.return_value = 3
+        queryset.__getitem__.return_value = [
+            Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+        ]
+
+        result = CommentRepository().list_by_task(task_id=42, limit=1, offset=1)
+
+        self.assertEqual(
+            result.data,
+            [
+                Comment(
+                    id=DefaultTestComment.id,
+                    content=DefaultTestComment.content,
+                )
+            ],
+        )
+        self.assertEqual(
+            result.pagination,
+            PaginationDTO(page=2, per_page=1, total=3, total_pages=3),
+        )
+        filter_comments.assert_called_once_with(task_id=42)
+        queryset.__getitem__.assert_called_once_with(slice(1, 2))
+
+
+class CommentServiceTests(SimpleTestCase):
+    @patch("comments.services.TaskRepository")
+    @patch("comments.services.CommentRepository")
+    def test_list_by_task_checks_task_and_returns_comments(
+        self, repository_class: Mock, task_repository_class: Mock
+    ) -> None:
+        expected = PaginatedDTO(
+            data=[
+                Comment(
+                    id=DefaultTestComment.id,
+                    content=DefaultTestComment.content,
+                )
+            ],
+            pagination=PaginationDTO(page=1, per_page=20, total=1, total_pages=1),
+        )
+        repository_class.return_value.list_by_task.return_value = expected
+
+        result = CommentService().list_by_task(task_id=42, limit=20, offset=0)
+
+        self.assertIs(result, expected)
+        task_repository_class.return_value.get_by_id.assert_called_once_with(42)
+        repository_class.return_value.list_by_task.assert_called_once_with(
+            task_id=42, limit=20, offset=0
+        )
+
+    @patch("comments.services.TaskRepository")
+    @patch("comments.services.CommentRepository")
+    def test_list_by_task_does_not_query_comments_for_missing_task(
+        self, repository_class: Mock, task_repository_class: Mock
+    ) -> None:
+        task_repository_class.return_value.get_by_id.side_effect = TaskNotFoundError
+
+        with self.assertRaises(TaskNotFoundError):
+            CommentService().list_by_task(task_id=42, limit=20, offset=0)
+
+        repository_class.return_value.list_by_task.assert_not_called()
+
+
+class CommentListIntegrationTests(TestCase):
+    url_template: ClassVar[str] = "/api/tasks/{task_id}/comments/"
+    user: ClassVar[AbstractBaseUser]
+    task: ClassVar[Task]
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.user = get_user_model().objects.create_user(
+            username="comment-user", password=DefaultTestUser.password
+        )
+        cls.task = Task.objects.create(title="Task", creator=cls.user)
+        for content in ("First comment", "Second comment", "Third comment"):
+            Comment.objects.create(task=cls.task, author=cls.user, content=content)
+
+    def setUp(self) -> None:
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = self.url_template.format(task_id=self.task.pk)
+
+    def test_missing_task_returns_404(self) -> None:
+        response = self.client.get(self.url_template.format(task_id=999999))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Task not found.")
+
+    def test_list_returns_paginated_comments(self) -> None:
+        response = self.client.get(self.url, {"limit": 2, "offset": 1})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [comment["content"] for comment in response.json()["data"]],
+            ["Second comment", "First comment"],
+        )
+        self.assertEqual(
+            response.json()["pagination"],
+            {"page": 1, "per_page": 2, "total": 3, "total_pages": 2},
+        )
+
+
+class CommentListApiTests(TestCase):
+    url = "/api/tasks/42/comments/"
+
+    def setUp(self) -> None:
+        self.factory = APIRequestFactory()
+
+    def test_unauthenticated_user_returns_401(self) -> None:
+        request = self.factory.get(self.url)
+
+        response = CommentListView.as_view()(request, task_id=42)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

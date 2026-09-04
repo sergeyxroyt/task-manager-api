@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "users",
     "tasks",
+    "comments",
 ]
 
 AUTH_USER_MODEL = "users.User"
