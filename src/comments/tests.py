@@ -26,8 +26,14 @@ class DefaultTestComment:
 
 class CommentRepositoryTests(SimpleTestCase):
     @patch("comments.repositories.Comment.objects.create")
-    def test_create_returns_created_comment(self, create_comment: Mock) -> None:
-        comment = Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+    def test_create_returns_created_comment(
+        self,
+        create_comment: Mock,
+    ) -> None:
+        comment = Comment(
+            id=DefaultTestComment.id,
+            content=DefaultTestComment.content,
+        )
         create_comment.return_value = comment
         author = User(id=DefaultTestUser.id, username=DefaultTestUser.username)
 
@@ -51,10 +57,17 @@ class CommentRepositoryTests(SimpleTestCase):
         queryset = filter_comments.return_value
         queryset.count.return_value = 3
         queryset.__getitem__.return_value = [
-            Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+            Comment(
+                id=DefaultTestComment.id,
+                content=DefaultTestComment.content,
+            ),
         ]
 
-        result = CommentRepository().list_by_task(task_id=42, limit=1, offset=1)
+        result = CommentRepository().list_by_task(
+            task_id=42,
+            limit=1,
+            offset=1,
+        )
 
         self.assertEqual(
             result.data,
@@ -79,7 +92,10 @@ class CommentServiceTests(SimpleTestCase):
     def test_create_checks_task_and_creates_comment(
         self, repository_class: Mock, task_repository_class: Mock
     ) -> None:
-        comment = Comment(id=DefaultTestComment.id, content=DefaultTestComment.content)
+        comment = Comment(
+            id=DefaultTestComment.id,
+            content=DefaultTestComment.content,
+        )
         repository_class.return_value.create.return_value = comment
         author = User(id=DefaultTestUser.id, username=DefaultTestUser.username)
 
@@ -90,7 +106,9 @@ class CommentServiceTests(SimpleTestCase):
         )
 
         self.assertIs(result, comment)
-        task_repository_class.return_value.get_by_id.assert_called_once_with(42)
+        task_repository_class.return_value.get_by_id.assert_called_once_with(
+            42
+        )
         repository_class.return_value.create.assert_called_once_with(
             task_id=42,
             author=author,
@@ -102,7 +120,9 @@ class CommentServiceTests(SimpleTestCase):
     def test_create_does_not_create_comment_for_missing_task(
         self, repository_class: Mock, task_repository_class: Mock
     ) -> None:
-        task_repository_class.return_value.get_by_id.side_effect = TaskNotFoundError
+        task_repository_class.return_value.get_by_id.side_effect = (
+            TaskNotFoundError
+        )
 
         with self.assertRaises(TaskNotFoundError):
             CommentService().create(
@@ -125,14 +145,21 @@ class CommentServiceTests(SimpleTestCase):
                     content=DefaultTestComment.content,
                 )
             ],
-            pagination=PaginationDTO(page=1, per_page=20, total=1, total_pages=1),
+            pagination=PaginationDTO(
+                page=1,
+                per_page=20,
+                total=1,
+                total_pages=1,
+            ),
         )
         repository_class.return_value.list_by_task.return_value = expected
 
         result = CommentService().list_by_task(task_id=42, limit=20, offset=0)
 
         self.assertIs(result, expected)
-        task_repository_class.return_value.get_by_id.assert_called_once_with(42)
+        task_repository_class.return_value.get_by_id.assert_called_once_with(
+            42
+        )
         repository_class.return_value.list_by_task.assert_called_once_with(
             task_id=42, limit=20, offset=0
         )
@@ -142,7 +169,9 @@ class CommentServiceTests(SimpleTestCase):
     def test_list_by_task_does_not_query_comments_for_missing_task(
         self, repository_class: Mock, task_repository_class: Mock
     ) -> None:
-        task_repository_class.return_value.get_by_id.side_effect = TaskNotFoundError
+        task_repository_class.return_value.get_by_id.side_effect = (
+            TaskNotFoundError
+        )
 
         with self.assertRaises(TaskNotFoundError):
             CommentService().list_by_task(task_id=42, limit=20, offset=0)
@@ -162,7 +191,11 @@ class CommentListIntegrationTests(TestCase):
         )
         cls.task = Task.objects.create(title="Task", creator=cls.user)
         for content in ("First comment", "Second comment", "Third comment"):
-            Comment.objects.create(task=cls.task, author=cls.user, content=content)
+            Comment.objects.create(
+                task=cls.task,
+                author=cls.user,
+                content=content,
+            )
 
     def setUp(self) -> None:
         self.client = APIClient()
@@ -228,7 +261,11 @@ class CommentListApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_unauthenticated_user_cannot_create_comment(self) -> None:
-        request = self.factory.post(self.url, {"content": "Comment"}, format="json")
+        request = self.factory.post(
+            self.url,
+            {"content": "Comment"},
+            format="json",
+        )
 
         response = CommentListView.as_view()(request, task_id=42)
 

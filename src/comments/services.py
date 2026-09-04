@@ -27,4 +27,8 @@ class CommentService:
         self, *, task_id: int, limit: int, offset: int
     ) -> PaginatedDTO[Comment]:
         self.task_repository.get_by_id(task_id)
-        return self.repository.list_by_task(task_id=task_id, limit=limit, offset=offset)
+        return self.repository.list_by_task(
+            task_id=task_id,
+            limit=limit,
+            offset=offset,
+        )

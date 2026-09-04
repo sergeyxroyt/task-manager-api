@@ -37,7 +37,11 @@ class TaskRepository:
         total = queryset.count()
         return PaginatedDTO(
             data=list(queryset[offset : offset + limit]),
-            pagination=build_pagination(limit=limit, offset=offset, total=total),
+            pagination=build_pagination(
+                limit=limit,
+                offset=offset,
+                total=total,
+            ),
         )
 
     def get_by_id(self, task_id: int) -> Task:

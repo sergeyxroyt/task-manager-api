@@ -78,11 +78,22 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation.CommonPasswordValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation.NumericPasswordValidator"
+        ),
+    },
 ]
 
 REST_FRAMEWORK = {
@@ -90,7 +101,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
 SPECTACULAR_SETTINGS = {
@@ -100,8 +113,12 @@ SPECTACULAR_SETTINGS = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=env("ACCESS_TOKEN_LIFETIME_S")),
-    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=env("REFRESH_TOKEN_LIFETIME_S")),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        seconds=env("ACCESS_TOKEN_LIFETIME_S"),
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        seconds=env("REFRESH_TOKEN_LIFETIME_S"),
+    ),
 }
 
 LANGUAGE_CODE = "en-us"

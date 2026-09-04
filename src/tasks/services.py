@@ -27,7 +27,9 @@ class TaskService:
         user: User,
         assignee_id: int | None = None,
     ) -> Task:
-        if assignee_id is not None and not self.user_repository.is_exists(assignee_id):
+        if assignee_id is not None and not self.user_repository.is_exists(
+            assignee_id
+        ):
             raise AssigneeNotFoundError
 
         return self.repository.create(
@@ -44,7 +46,11 @@ class TaskService:
         offset: int,
         statuses: Sequence[str] = (),
     ) -> PaginatedDTO[Task]:
-        return self.repository.list(limit=limit, offset=offset, statuses=statuses)
+        return self.repository.list(
+            limit=limit,
+            offset=offset,
+            statuses=statuses,
+        )
 
     def get_by_id(self, task_id: int) -> Task:
         return self.repository.get_by_id(task_id)

@@ -19,5 +19,9 @@ class CommentRepository:
         total = queryset.count()
         return PaginatedDTO(
             data=list(queryset[offset : offset + limit]),
-            pagination=build_pagination(limit=limit, offset=offset, total=total),
+            pagination=build_pagination(
+                limit=limit,
+                offset=offset,
+                total=total,
+            ),
         )

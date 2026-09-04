@@ -27,15 +27,30 @@ class TaskSerializer(serializers.ModelSerializer[Task]):
 
 class TaskCreateSerializer(serializers.Serializer[dict[str, object]]):
     title = serializers.CharField(max_length=255)
-    description = serializers.CharField(required=False, allow_blank=True, default="")
-    assignee_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    assignee_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
 
 
 class TaskUpdateSerializer(serializers.Serializer[dict[str, object]]):
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
-    status = serializers.ChoiceField(choices=Task.Status.choices, required=False)
-    assignee_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    status = serializers.ChoiceField(
+        choices=Task.Status.choices,
+        required=False,
+    )
+    assignee_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
 
 
 class TaskCreateResponseSerializer(serializers.Serializer[dict[str, int]]):

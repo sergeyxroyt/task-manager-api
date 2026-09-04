@@ -13,7 +13,8 @@ def main() -> None:
     except ImportError as exc:
         message = (
             "Couldn't import Django. Is it installed and available on your "
-            "PYTHONPATH environment variable? Did you forget to activate a virtual "
+            "PYTHONPATH environment variable? "
+            "Did you forget to activate a virtual "
             "environment?"
         )
         raise ImportError(message) from exc

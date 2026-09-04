@@ -36,8 +36,14 @@ class TaskListView(QueryParamsAPIView, BodyAPIView):
         parameters=[TaskListQuerySerializer],
         responses={
             200: TaskListResponseSerializer,
-            400: OpenApiResponse(response=ErrorSerializer, description="Invalid query"),
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            400: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Invalid query",
+            ),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
         },
     )
     def get(self, request: Request) -> Response:
@@ -59,10 +65,17 @@ class TaskListView(QueryParamsAPIView, BodyAPIView):
         request=TaskCreateSerializer,
         responses={
             201: TaskCreateResponseSerializer,
-            400: OpenApiResponse(response=ErrorSerializer, description="Invalid body"),
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            400: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Invalid body",
+            ),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
             404: OpenApiResponse(
-                response=ErrorSerializer, description="Assignee not found"
+                response=ErrorSerializer,
+                description="Assignee not found",
             ),
         },
     )
@@ -97,8 +110,14 @@ class TaskDetailView(BodyAPIView):
     @extend_schema(
         responses={
             200: TaskSerializer,
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
-            404: OpenApiResponse(response=ErrorSerializer, description="Not found"),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
+            404: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Not found",
+            ),
         }
     )
     def get(self, request: Request, task_id: int) -> Response:
@@ -113,9 +132,18 @@ class TaskDetailView(BodyAPIView):
         request=TaskUpdateSerializer,
         responses={
             204: None,
-            400: OpenApiResponse(response=ErrorSerializer, description="Invalid body"),
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
-            404: OpenApiResponse(response=ErrorSerializer, description="Not found"),
+            400: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Invalid body",
+            ),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
+            404: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Not found",
+            ),
         },
     )
     def patch(self, request: Request, task_id: int) -> Response:
@@ -133,8 +161,14 @@ class TaskDetailView(BodyAPIView):
     @extend_schema(
         responses={
             204: None,
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
-            404: OpenApiResponse(response=ErrorSerializer, description="Not found"),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
+            404: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Not found",
+            ),
         },
     )
     def delete(self, request: Request, task_id: int) -> Response:

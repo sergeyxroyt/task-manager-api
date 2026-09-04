@@ -35,10 +35,17 @@ class CommentListView(QueryParamsAPIView, BodyAPIView):
         parameters=[CommentListQuerySerializer],
         responses={
             200: CommentListResponseSerializer,
-            400: OpenApiResponse(response=ErrorSerializer, description="Invalid query"),
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            400: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Invalid query",
+            ),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
             404: OpenApiResponse(
-                response=ErrorSerializer, description="Task not found"
+                response=ErrorSerializer,
+                description="Task not found",
             ),
         },
     )
@@ -66,10 +73,17 @@ class CommentListView(QueryParamsAPIView, BodyAPIView):
         request=CommentCreateSerializer,
         responses={
             201: CommentCreateResponseSerializer,
-            400: OpenApiResponse(response=ErrorSerializer, description="Invalid body"),
-            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            400: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Invalid body",
+            ),
+            401: OpenApiResponse(
+                response=ErrorSerializer,
+                description="Unauthorized",
+            ),
             404: OpenApiResponse(
-                response=ErrorSerializer, description="Task not found"
+                response=ErrorSerializer,
+                description="Task not found",
             ),
         },
     )

@@ -2,7 +2,11 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
+from rest_framework.test import (
+    APIClient,
+    APIRequestFactory,
+    force_authenticate,
+)
 from typing import ClassVar
 from datetime import timedelta
 from unittest.mock import Mock, patch
@@ -35,7 +39,10 @@ class TaskRepositoryTests(SimpleTestCase):
         result = TaskRepository().create(
             title=DefaultTestTask.title,
             description=DefaultTestTask.description,
-            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
+            creator=User(
+                id=DefaultTestUser.id,
+                username=DefaultTestUser.username,
+            ),
             assignee_id=8,
         )
 
@@ -43,18 +50,30 @@ class TaskRepositoryTests(SimpleTestCase):
         create_task.assert_called_once_with(
             title=DefaultTestTask.title,
             description=DefaultTestTask.description,
-            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
+            creator=User(
+                id=DefaultTestUser.id,
+                username=DefaultTestUser.username,
+            ),
             assignee_id=8,
         )
 
     @patch("tasks.repositories.Task.objects.all")
-    def test_list_applies_statuses_and_pagination(self, get_tasks: Mock) -> None:
+    def test_list_applies_statuses_and_pagination(
+        self,
+        get_tasks: Mock,
+    ) -> None:
         queryset = get_tasks.return_value
         filtered_queryset = queryset.filter.return_value
         filtered_queryset.count.return_value = 21
-        filtered_queryset.__getitem__.return_value = [Task(id=42, title="Task")]
+        filtered_queryset.__getitem__.return_value = [
+            Task(id=42, title="Task"),
+        ]
 
-        result = TaskRepository().list(limit=10, offset=20, statuses=["todo", "done"])
+        result = TaskRepository().list(
+            limit=10,
+            offset=20,
+            statuses=["todo", "done"],
+        )
 
         self.assertEqual(result.data, [Task(id=42, title="Task")])
         self.assertEqual(result.pagination.total, 21)
@@ -64,7 +83,10 @@ class TaskRepositoryTests(SimpleTestCase):
         filtered_queryset.__getitem__.assert_called_once_with(slice(20, 30))
 
     @patch("tasks.repositories.Task.objects.all")
-    def test_list_without_statuses_uses_all_tasks(self, get_tasks: Mock) -> None:
+    def test_list_without_statuses_uses_all_tasks(
+        self,
+        get_tasks: Mock,
+    ) -> None:
         queryset = get_tasks.return_value
         queryset.count.return_value = 0
         queryset.__getitem__.return_value = []
@@ -115,7 +137,11 @@ class TaskRepositoryTests(SimpleTestCase):
     def test_update_saves_only_changed_fields(self, save_task: Mock) -> None:
         task = Task(id=42, title="Old title", status=Task.Status.TODO)
 
-        TaskRepository().update(task=task, title="New title", status=Task.Status.DONE)
+        TaskRepository().update(
+            task=task,
+            title="New title",
+            status=Task.Status.DONE,
+        )
 
         self.assertEqual(task.title, "New title")
         self.assertEqual(task.status, Task.Status.DONE)
@@ -134,11 +160,19 @@ class TaskRepositoryTests(SimpleTestCase):
 
 class TaskServiceTests(SimpleTestCase):
     @patch("tasks.services.TaskRepository")
-    def test_list_returns_tasks_from_repository(self, repository_class: Mock) -> None:
+    def test_list_returns_tasks_from_repository(
+        self,
+        repository_class: Mock,
+    ) -> None:
         repository = repository_class.return_value
         expected = PaginatedDTO(
             data=[Task(id=42, title="Task")],
-            pagination=PaginationDTO(page=3, per_page=10, total=21, total_pages=3),
+            pagination=PaginationDTO(
+                page=3,
+                per_page=10,
+                total=21,
+                total_pages=3,
+            ),
         )
         repository.list.return_value = expected
         service = TaskService()
@@ -146,7 +180,11 @@ class TaskServiceTests(SimpleTestCase):
         result = service.list(limit=10, offset=20, statuses=["todo"])
 
         self.assertIs(result, expected)
-        repository.list.assert_called_once_with(limit=10, offset=20, statuses=["todo"])
+        repository.list.assert_called_once_with(
+            limit=10,
+            offset=20,
+            statuses=["todo"],
+        )
 
     @patch("tasks.services.UserRepository")
     @patch("tasks.services.TaskRepository")
@@ -162,7 +200,10 @@ class TaskServiceTests(SimpleTestCase):
         result = TaskService().create(
             title=DefaultTestTask.title,
             description=DefaultTestTask.description,
-            user=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
+            user=User(
+                id=DefaultTestUser.id,
+                username=DefaultTestUser.username,
+            ),
             assignee_id=8,
         )
 
@@ -171,7 +212,10 @@ class TaskServiceTests(SimpleTestCase):
         repository.create.assert_called_once_with(
             title=DefaultTestTask.title,
             description=DefaultTestTask.description,
-            creator=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
+            creator=User(
+                id=DefaultTestUser.id,
+                username=DefaultTestUser.username,
+            ),
             assignee_id=8,
         )
 
@@ -187,7 +231,10 @@ class TaskServiceTests(SimpleTestCase):
             TaskService(repository=repository_class.return_value).create(
                 title=DefaultTestTask.title,
                 description=DefaultTestTask.description,
-                user=User(id=DefaultTestUser.id, username=DefaultTestUser.username),
+                user=User(
+                    id=DefaultTestUser.id,
+                    username=DefaultTestUser.username,
+                ),
                 assignee_id=8,
             )
 
@@ -225,7 +272,9 @@ class TaskServiceTests(SimpleTestCase):
         self, repository_class: Mock
     ) -> None:
         repository = repository_class.return_value
-        repository.get_by_id.side_effect = RuntimeError("database is unavailable")
+        repository.get_by_id.side_effect = RuntimeError(
+            "database is unavailable",
+        )
         service = TaskService()
 
         with self.assertRaisesRegex(RuntimeError, "database is unavailable"):
@@ -261,7 +310,12 @@ class TaskServiceTests(SimpleTestCase):
         user_repository_class.return_value.is_exists.return_value = False
 
         with self.assertRaises(AssigneeNotFoundError):
-            TaskService(repository=repository).update(task_id=42, assignee_id=8)
+            TaskService(
+                repository=repository,
+            ).update(
+                task_id=42,
+                assignee_id=8,
+            )
 
         repository.update.assert_not_called()
 
@@ -274,7 +328,12 @@ class TaskServiceTests(SimpleTestCase):
         repository.get_by_id.side_effect = TaskNotFoundError
 
         with self.assertRaises(TaskNotFoundError):
-            TaskService(repository=repository).update(task_id=42, title="Updated")
+            TaskService(
+                repository=repository,
+            ).update(
+                task_id=42,
+                title="Updated",
+            )
 
         user_repository_class.return_value.is_exists.assert_not_called()
         repository.update.assert_not_called()
@@ -293,7 +352,10 @@ class TaskServiceTests(SimpleTestCase):
         repository.delete.assert_called_once_with(task=task)
 
     @patch("tasks.services.TaskRepository")
-    def test_delete_propagates_missing_task(self, repository_class: Mock) -> None:
+    def test_delete_propagates_missing_task(
+        self,
+        repository_class: Mock,
+    ) -> None:
         repository = repository_class.return_value
         repository.get_by_id.side_effect = TaskNotFoundError
 
@@ -341,7 +403,11 @@ class TaskDetailApiTests(TestCase):
     def test_missing_task_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.get(self.task_url_template.format(task_id=999999))
+        response = self.client.get(
+            self.task_url_template.format(
+                task_id=999999,
+            ),
+        )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.json()["detail"], "Task not found.")
@@ -376,7 +442,9 @@ class TaskDetailApiTests(TestCase):
         self.assertEqual(self.task.status, Task.Status.DONE)
         self.assertEqual(self.task.assignee_id, assignee.pk)
 
-    def test_patch_without_assignee_leaves_existing_assignee_unchanged(self) -> None:
+    def test_patch_without_assignee_leaves_existing_assignee_unchanged(
+        self,
+    ) -> None:
         self.client.force_authenticate(user=self.user)
         assignee = get_user_model().objects.create_user(
             username="existing-assignee", password=DefaultTestUser.password
@@ -400,7 +468,11 @@ class TaskDetailApiTests(TestCase):
         self.task.assignee = assignee
         self.task.save(update_fields=["assignee"])
 
-        response = self.client.patch(self.url, {"assignee_id": None}, format="json")
+        response = self.client.patch(
+            self.url,
+            {"assignee_id": None},
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.task.refresh_from_db()
@@ -418,7 +490,10 @@ class TaskDetailApiTests(TestCase):
         for body in invalid_bodies:
             with self.subTest(body=body):
                 response = self.client.patch(self.url, body, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
 
     def test_patch_missing_task_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
@@ -435,13 +510,21 @@ class TaskDetailApiTests(TestCase):
     def test_patch_missing_assignee_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.patch(self.url, {"assignee_id": 999999}, format="json")
+        response = self.client.patch(
+            self.url,
+            {"assignee_id": 999999},
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.json()["detail"], "Assignee not found.")
 
     def test_unauthenticated_user_cannot_patch_task(self) -> None:
-        response = self.client.patch(self.url, {"title": "Updated"}, format="json")
+        response = self.client.patch(
+            self.url,
+            {"title": "Updated"},
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -457,7 +540,11 @@ class TaskDetailApiTests(TestCase):
     def test_delete_missing_task_returns_404(self) -> None:
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.delete(self.task_url_template.format(task_id=999999))
+        response = self.client.delete(
+            self.task_url_template.format(
+                task_id=999999,
+            ),
+        )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.json()["detail"], "Task not found.")
@@ -555,7 +642,14 @@ class TaskListIntegrationTests(TestCase):
         self.assertTrue(set(first_ids).isdisjoint(second_ids))
         self.assertEqual(
             first_ids + second_ids,
-            list(Task.objects.values_list("id", flat=True).order_by("-created_at")),
+            list(
+                Task.objects.values_list(
+                    "id",
+                    flat=True,
+                ).order_by(
+                    "-created_at",
+                ),
+            ),
         )
         self.assertEqual(
             first_data["pagination"],
@@ -574,7 +668,8 @@ class TaskListIntegrationTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            {task["status"] for task in response.json()["data"]}, {"todo", "done"}
+            {task["status"] for task in response.json()["data"]},
+            {"todo", "done"},
         )
         self.assertEqual(len(response.json()["data"]), 3)
 
@@ -639,7 +734,12 @@ class TaskListApiTests(TestCase):
         service = service_class.return_value
         service.list.return_value = PaginatedDTO(
             data=[],
-            pagination=PaginationDTO(page=3, per_page=5, total=12, total_pages=3),
+            pagination=PaginationDTO(
+                page=3,
+                per_page=5,
+                total=12,
+                total_pages=3,
+            ),
         )
         request = self.factory.get(
             f"{self.tasks_url}?limit=5&offset=10&status=todo,in_progress"
@@ -685,9 +785,16 @@ class TaskListApiTests(TestCase):
 
         for body in invalid_bodies:
             with self.subTest(body=body):
-                request = self.factory.post(self.tasks_url, body, format="json")
+                request = self.factory.post(
+                    self.tasks_url,
+                    body,
+                    format="json",
+                )
                 force_authenticate(request, user=self.user)
 
                 response = TaskListView.as_view()(request)
 
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
