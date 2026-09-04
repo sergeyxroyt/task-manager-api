@@ -1,12 +1,28 @@
 from collections.abc import Sequence
 
 from common.pagination import PaginatedDTO, build_pagination
+from users.models import User
 
 from .exceptions import TaskNotFoundError
 from .models import Task
 
 
 class TaskRepository:
+    def create(
+        self,
+        *,
+        title: str,
+        description: str,
+        creator: User,
+        assignee_id: int | None = None,
+    ) -> Task:
+        return Task.objects.create(
+            title=title,
+            description=description,
+            creator=creator,
+            assignee_id=assignee_id,
+        )
+
     def list(
         self,
         *,

@@ -4,12 +4,14 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from .repositories import UserRepository
+
 
 class AuthApiTestCase(TestCase):
     """Test the authentication contract used by the API."""
 
-    login_url = "/api/auth/login"
-    refresh_url = "/api/auth/refresh"
+    login_url = "/api/auth/login/"
+    refresh_url = "/api/auth/refresh/"
     username: str
     password: str
     user: AbstractBaseUser
@@ -72,3 +74,13 @@ class AuthApiTestCase(TestCase):
         response_data: dict[str, str] = response.json()
         self.assertIsInstance(response_data.get("access"), str)
         self.assertTrue(response_data["access"])
+
+
+class UserRepositoryTests(TestCase):
+    def test_is_exists_returns_true_for_existing_user(self) -> None:
+        user = get_user_model().objects.create_user(username="existing-user")
+
+        self.assertTrue(UserRepository().is_exists(user.pk))
+
+    def test_is_exists_returns_false_for_missing_user(self) -> None:
+        self.assertFalse(UserRepository().is_exists(999999))

@@ -1,3 +1,5 @@
+from typing import cast
+
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
@@ -6,11 +8,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 
-from common.views import QueryParamsAPIView
+from common.views import BodyAPIView, QueryParamsAPIView
+from users.models import User
 
-from .exceptions import TaskNotFoundError
+from .exceptions import AssigneeNotFoundError, TaskNotFoundError
 from .serializers import (
     ErrorSerializer,
+    TaskCreateResponseSerializer,
+    TaskCreateSerializer,
     TaskListQuerySerializer,
     TaskListResponseSerializer,
     TaskSerializer,
@@ -18,9 +23,10 @@ from .serializers import (
 from .services import TaskService
 
 
-class TaskListView(QueryParamsAPIView):
+class TaskListView(QueryParamsAPIView, BodyAPIView):
     permission_classes = [IsAuthenticated]
     query_serializer_class = TaskListQuerySerializer
+    body_serializer_class = TaskCreateSerializer
 
     def __init__(self, **kwargs: object) -> None:
         super().__init__(**kwargs)
@@ -47,6 +53,36 @@ class TaskListView(QueryParamsAPIView):
                 {"data": tasks.data, "pagination": tasks.pagination}
             ).data,
             status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=TaskCreateSerializer,
+        responses={
+            201: TaskCreateResponseSerializer,
+            400: OpenApiResponse(response=ErrorSerializer, description="Invalid body"),
+            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            404: OpenApiResponse(
+                response=ErrorSerializer, description="Assignee not found"
+            ),
+        },
+    )
+    def post(self, request: Request) -> Response:
+        body = self.get_body(request)
+        user = cast(User, request.user)
+
+        try:
+            task = self.service.create(
+                title=body["title"],
+                description=body["description"],
+                assignee_id=body.get("assignee_id"),
+                user=user,
+            )
+        except AssigneeNotFoundError:
+            raise NotFound("Assignee not found.")
+
+        return Response(
+            TaskCreateResponseSerializer({"id": task.pk}).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
