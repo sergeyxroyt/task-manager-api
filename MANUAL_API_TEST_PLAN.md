@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Проверить вручную рабочие endpoint’ы задач и комментариев task-manager-api.
-Endpoint’ы получения/обновления JWT, Django Admin и OpenAPI/Swagger в этот
-план не входят.
+Manually verify the task and comment endpoints of task-manager-api. JWT token
+obtain/refresh endpoints, Django Admin, and OpenAPI/Swagger are not covered by
+this plan.
 
 ## Preconditions
 
@@ -13,14 +13,14 @@ export BASE_URL="http://localhost:8000"
 export API="$BASE_URL/api"
 ```
 
-Запустить окружение одним из вариантов:
+Start the environment using one of the following options:
 
 ```sh
 cp .env.example .env
 make dev-docker-up
 ```
 
-или при отдельно запущенном PostgreSQL:
+or with PostgreSQL running separately:
 
 ```sh
 uv sync
@@ -28,16 +28,16 @@ make migrate
 make dev-run
 ```
 
-Перед началом убедиться, что сервер отвечает:
+Before starting, make sure that the server responds:
 
 ```sh
 test "$(curl -sS -o /dev/null -w '%{http_code}' "$API/tasks/")" = 401
 ```
 
-Все запросы ниже должны иметь заголовок `Content-Type: application/json`, если
-у запроса есть JSON-тело. Все проверяемые endpoint’ы защищены JWT. Поэтому
-перед тестированием получить access token подготовительным login-запросом
-(сам `/api/auth/login/` этим планом не тестируется):
+All requests below must include the `Content-Type: application/json` header if
+the request has a JSON body. All endpoints under test are protected by JWT.
+Therefore, obtain an access token before testing by sending a preparatory login
+request (the `/api/auth/login/` endpoint itself is not tested by this plan):
 
 ```sh
 export ACCESS_TOKEN="$(curl -sS -X POST "$API/auth/login/" \
@@ -47,37 +47,37 @@ export ACCESS_TOKEN="$(curl -sS -X POST "$API/auth/login/" \
 test -n "$ACCESS_TOKEN"
 ```
 
-Для защищённых ресурсов использовать:
+Use the following header for protected resources:
 
 ```sh
 export AUTH="Authorization: Bearer $ACCESS_TOKEN"
 ```
 
-Ожидаемый результат каждого шага нужно фиксировать как `PASS`/`FAIL` с HTTP
-статусом и фактическим JSON-ответом. Значения `USER_ID`, `ASSIGNEE_ID`,
-`TASK_ID`, `TASK_2_ID`, `COMMENT_ID` и токены брать из фактических ответов, а не
-предполагать заранее.
+Record the expected result of each step as `PASS`/`FAIL`, including the HTTP
+status and the actual JSON response. Take the values of `USER_ID`,
+`ASSIGNEE_ID`, `TASK_ID`, `TASK_2_ID`, `COMMENT_ID`, and tokens from the actual
+responses rather than assuming them in advance.
 
 ## Test data setup
 
-Создать двух активных пользователей. Команда безопасна для повторного запуска:
-существующие пользователи с такими username обновляются.
+Create two active users. This command is safe to run repeatedly: existing users
+with these usernames are updated.
 
 ```sh
 uv run python manage.py shell -c "from django.contrib.auth import get_user_model; U=get_user_model(); u,_=U.objects.get_or_create(username='api_creator',defaults={'email':'api_creator@example.com','is_active':True}); u.set_password('Creator-pass-123!'); u.is_active=True; u.save(); a,_=U.objects.get_or_create(username='api_assignee',defaults={'email':'api_assignee@example.com','is_active':True}); a.set_password('Assignee-pass-123!'); a.is_active=True; a.save(); print({'creator_id':u.pk,'assignee_id':a.pk})"
 ```
 
-После подготовки сохранить идентификаторы:
+After setup, save the identifiers:
 
 ```sh
 export CREATOR_USERNAME="api_creator"
 export CREATOR_PASSWORD="Creator-pass-123!"
-export ASSIGNEE_ID="<id из вывода команды>"
+export ASSIGNEE_ID="<id from the command output>"
 ```
 
 ## 1. Unauthenticated access
 
-Без `Authorization` проверить:
+Check the following without an `Authorization` header:
 
 ```sh
 curl -i "$API/tasks/"
@@ -85,47 +85,48 @@ curl -i "$API/tasks/1/"
 curl -i "$API/tasks/1/comments/"
 ```
 
-PASS criteria: каждый ответ `401`; данные задач/комментариев не возвращаются.
+PASS criteria: every response is `401`; no task or comment data is returned.
 
-Также проверить malformed header (`Authorization: Bearer invalid`) и другой
-scheme (`Authorization: Basic abc`): ожидать `401`.
+Also test a malformed header (`Authorization: Bearer invalid`) and a different
+scheme (`Authorization: Basic abc`); expect `401`.
 
 ## 2. Tasks
 
-### 3.1 Create task — default fields
+### 2.1 Create task — default fields
 
 ```sh
 curl -i -X POST "$API/tasks/" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"title":"API task default"}'
 ```
 
-PASS criteria: `201`; ответ ровно содержит числовой `id`. Сохранить как
-`TASK_ID`. Затем получить его через detail и проверить: title совпадает,
-description равен пустой строке, status равен `todo`, `creator_id` равен ID
-creator, `assignee_id` равен `null`, `created_at` и `updated_at` — ISO datetime.
+PASS criteria: `201`; the response contains exactly a numeric `id`. Save it as
+`TASK_ID`. Then retrieve it through the detail endpoint and verify: the title
+matches, the description is an empty string, the status is `todo`,
+`creator_id` is the creator's ID, `assignee_id` is `null`, and `created_at` and
+`updated_at` are ISO datetimes.
 
-### 3.2 Create task — complete valid body
+### 2.2 Create task — complete valid body
 
 ```sh
 curl -i -X POST "$API/tasks/" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"title\":\"Assigned API task\",\"description\":\"Initial description\",\"assignee_id\":$ASSIGNEE_ID}"
 ```
 
-Сохранить returned id как `TASK_2_ID`. Через detail проверить все поля,
-включая `assignee_id == ASSIGNEE_ID` и `status == "todo"`.
+Save the returned ID as `TASK_2_ID`. Verify all fields through the detail
+endpoint, including `assignee_id == ASSIGNEE_ID` and `status == "todo"`.
 
-### 3.3 Create task — validation and assignee errors
+### 2.3 Create task — validation and assignee errors
 
-Проверить POST с каждым телом: `{}`, `{"title":""}`, title длиной 256
-символов, `title: null`, `description: null`, `assignee_id: 0`,
-`assignee_id: -1`, `assignee_id: "text"`, несуществующий положительный
+Test POST with each of the following bodies: `{}`, `{"title":""}`, a title
+with 256 characters, `title: null`, `description: null`, `assignee_id: 0`,
+`assignee_id: -1`, `assignee_id: "text"`, and a non-existent positive
 `assignee_id`.
 
-PASS criteria: первые validation cases возвращают `400` с ошибками полей;
-несуществующий assignee возвращает `404` с `detail == "Assignee not found."`;
-невалидные запросы не создают task.
+PASS criteria: the first validation cases return `400` with field errors; a
+non-existent assignee returns `404` with `detail == "Assignee not found."`;
+invalid requests do not create a task.
 
-### 3.4 List tasks — default, pagination and filters
+### 2.4 List tasks — default, pagination, and filters
 
 ```sh
 curl -i "$API/tasks/" -H "$AUTH"
@@ -136,29 +137,31 @@ curl -i "$API/tasks/?status=todo&status=done" -H "$AUTH"
 curl -i "$API/tasks/?statuses=todo,done" -H "$AUTH"
 ```
 
-PASS criteria: `200`; JSON имеет `data` (array) и `pagination` с числовыми
-`page`, `per_page`, `total`, `total_pages`; default `per_page == 20`, `page`
-нумеруется с 1; limit/offset и статусы реально влияют на выдачу; в статусном
-фильтре нет задач с другим status. Порядок — от новых к старым.
+PASS criteria: `200`; the JSON has `data` (an array) and `pagination` with
+numeric `page`, `per_page`, `total`, and `total_pages`; the default `per_page`
+is `20`, and `page` is numbered from 1; limit/offset and statuses affect the
+result; the status-filtered result contains no tasks with another status.
+Results are ordered from newest to oldest.
 
-Проверить query validation: `limit=0`, `limit=101`, `limit=text`, `offset=-1`,
-`offset=text`, `statuses=unknown`. PASS criteria: `400`, данные не возвращаются.
-Проверить `offset` за пределами total: `200`, пустой `data`, корректные metadata.
+Test query validation: `limit=0`, `limit=101`, `limit=text`, `offset=-1`,
+`offset=text`, and `statuses=unknown`. PASS criteria: `400`; no data is
+returned. Test an offset beyond the total: `200`, an empty `data`, and correct
+metadata.
 
-### 3.5 Get task
+### 2.5 Get task
 
 ```sh
 curl -i "$API/tasks/$TASK_ID/" -H "$AUTH"
 curl -i "$API/tasks/999999/" -H "$AUTH"
 ```
 
-PASS criteria: существующий task даёт `200` со всеми полями схемы; неизвестный
-ID даёт `404` и `detail == "Task not found."`; `0`/нечисловой path не даёт
-успешный ответ (`404`).
+PASS criteria: an existing task returns `200` with all schema fields; an
+unknown ID returns `404` and `detail == "Task not found."`; `0` and a
+non-numeric path do not return a successful response (`404`).
 
-### 3.6 Patch task — each supported behavior
+### 2.6 Patch task — each supported behavior
 
-Последовательно выполнять PATCH и после каждого делать GET:
+Run the PATCH requests in sequence and perform a GET after each one:
 
 ```sh
 curl -i -X PATCH "$API/tasks/$TASK_ID/" -H "$AUTH" -H 'Content-Type: application/json' -d '{"title":"Renamed task"}'
@@ -168,22 +171,21 @@ curl -i -X PATCH "$API/tasks/$TASK_ID/" -H "$AUTH" -H 'Content-Type: application
 curl -i -X PATCH "$API/tasks/$TASK_ID/" -H "$AUTH" -H 'Content-Type: application/json' -d '{}'
 ```
 
-PASS criteria: каждый запрос `204` с пустым телом; изменяется только переданное
-поле, пропущенные поля сохраняются; `status` принимает `todo`, `in_progress`,
-`done`; null снимает assignee; `updated_at` обновляется после изменения.
-Для `{}` проверить фактическое поведение и зафиксировать его отдельно как
-контракт текущей версии.
+PASS criteria: every request returns `204` with an empty body; only the supplied
+field changes, and omitted fields are preserved; `status` accepts `todo`,
+`in_progress`, and `done`; `null` removes the assignee; `updated_at` changes
+after an update. For `{}`, verify the actual behavior and record it separately
+as a contract of the current version.
 
-Проверить invalid PATCH: неизвестное поле, `title: null`, title длиной 256,
-неподдерживаемый status, `assignee_id: 0`, несуществующий assignee и PATCH
-несуществующего task. Ожидать `400` для validation, `404` с
-`Assignee not found.` для неизвестного assignee и `404` с `Task not found.` для
-неизвестного task; при ошибке состояние task не меняется.
+Test invalid PATCH requests: an unknown field, `title: null`, a title with 256
+characters, an unsupported status, `assignee_id: 0`, a non-existent assignee,
+and a PATCH for a non-existent task. Expect `400` for validation errors, `404`
+with `Assignee not found.` for an unknown assignee, and `404` with `Task not
+found.` for an unknown task; the task state must not change on error.
 
-### 3.7 Delete task
+### 2.7 Delete task
 
-Перед удалением убедиться, что `TASK_2_ID` имеет комментарий (см. раздел 4),
-затем:
+Before deletion, make sure that `TASK_2_ID` has a comment (see section 3), then:
 
 ```sh
 curl -i -X DELETE "$API/tasks/$TASK_2_ID/" -H "$AUTH"
@@ -191,13 +193,14 @@ curl -i "$API/tasks/$TASK_2_ID/" -H "$AUTH"
 curl -i -X DELETE "$API/tasks/$TASK_2_ID/" -H "$AUTH"
 ```
 
-PASS criteria: первый DELETE `204` с пустым телом; GET после удаления `404`
-(`Task not found.`); повторный DELETE `404`. Проверить, что комментарии удалённой
-задачи больше недоступны (cascade).
+PASS criteria: the first DELETE returns `204` with an empty body; the GET after
+deletion returns `404` (`Task not found.`); the repeated DELETE returns `404`.
+Verify that comments belonging to the deleted task are no longer available
+(cascade).
 
 ## 3. Comments
 
-### 4.1 Create comments
+### 3.1 Create comments
 
 ```sh
 curl -i -X POST "$API/tasks/$TASK_ID/comments/" -H "$AUTH" -H 'Content-Type: application/json' \
@@ -206,16 +209,16 @@ curl -i -X POST "$API/tasks/$TASK_ID/comments/" -H "$AUTH" -H 'Content-Type: app
   -d '{"content":"Second API comment"}'
 ```
 
-PASS criteria: каждый ответ `201`, ровно содержит числовой `id`; сохранить id
-первого как `COMMENT_ID`. GET списка должен показывать author_id текущего
-пользователя, task не меняется.
+PASS criteria: every response returns `201` and contains exactly a numeric
+`id`; save the first ID as `COMMENT_ID`. The list GET must show the current
+user's `author_id`; the task must not change.
 
-Проверить `{}`, `content: null`, `content: 123`, пустую строку, пробелы,
-многострочный текст, Unicode и длинный текст. Зафиксировать фактическую
-валидацию: `CharField` допускает пустую строку, если сервер не ограничивает её
-отдельно. Для неизвестного task ожидать `404` и `Task not found.`.
+Test `{}`, `content: null`, `content: 123`, an empty string, whitespace,
+multiline text, Unicode, and long text. Record the actual validation behavior:
+`CharField` allows an empty string unless the server restricts it separately.
+For an unknown task, expect `404` and `Task not found.`.
 
-### 4.2 List comments, pagination and task existence
+### 3.2 List comments, pagination, and task existence
 
 ```sh
 curl -i "$API/tasks/$TASK_ID/comments/" -H "$AUTH"
@@ -224,18 +227,19 @@ curl -i "$API/tasks/$TASK_ID/comments/?limit=1&offset=1" -H "$AUTH"
 curl -i "$API/tasks/999999/comments/" -H "$AUTH"
 ```
 
-PASS criteria: `200`; response has `data` and pagination metadata; comments
-ordered newest first (`Second API comment`, then `First API comment`); limit and
-offset are respected; unknown task gives `404` with `Task not found.`. Проверить
-`limit=0`, `limit=101`, `offset=-1`, non-numeric values — ожидать `400`.
+PASS criteria: `200`; the response has `data` and pagination metadata; comments
+are ordered newest first (`Second API comment`, then `First API comment`); limit
+and offset are respected; an unknown task returns `404` with `Task not found.`.
+Test `limit=0`, `limit=101`, `offset=-1`, and non-numeric values; expect `400`.
 
 ## 4. Final consistency checks
 
-1. Снова получить список задач и убедиться, что удалённый `TASK_2_ID` отсутствует.
-2. Получить комментарии `TASK_ID` и сверить `total` с числом элементов/созданных
-   комментариев с учётом pagination.
-3. Повторить один защищённый GET с новым access из refresh — должен быть `200`.
-4. Убедиться, что каждый запрос без JWT не раскрыл данные и каждый ответ `204`
-   не содержит body.
-5. В отчёте указать дату, commit/version, URL, окружение, фактические IDs,
-   результаты каждого раздела и тело всех FAIL-ответов.
+1. Retrieve the task list again and make sure the deleted `TASK_2_ID` is absent.
+2. Retrieve the comments for `TASK_ID` and compare `total` with the number of
+   elements/created comments, accounting for pagination.
+3. Repeat a protected GET with a new access token obtained through refresh; it
+   must return `200`.
+4. Make sure that no request without JWT exposed data and that every `204`
+   response has no body.
+5. In the report, include the date, commit/version, URL, environment, actual
+   IDs, the result of each section, and the body of every FAIL response.

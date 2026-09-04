@@ -110,3 +110,6 @@ make test
 make lint
 make typecheck
 ```
+
+For a suggested manual testing workflow, see
+[MANUAL_API_TEST_PLAN.md](MANUAL_API_TEST_PLAN.md).
