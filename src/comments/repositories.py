@@ -1,7 +1,7 @@
 from common.pagination import PaginatedDTO, build_pagination
 from users.models import User
 
-from .models import Comment
+from comments.models import Comment
 
 
 class CommentRepository:

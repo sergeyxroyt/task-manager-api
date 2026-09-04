@@ -2,7 +2,7 @@ from django.urls import path
 
 from comments.views import CommentListView
 
-from .views import TaskDetailView, TaskListView
+from tasks.views import TaskDetailView, TaskListView
 
 
 urlpatterns = [

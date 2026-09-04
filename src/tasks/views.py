@@ -10,8 +10,8 @@ from drf_spectacular.utils import OpenApiResponse, extend_schema
 from common.views import BodyAPIView, QueryParamsAPIView
 from users.models import User
 
-from .exceptions import AssigneeNotFoundError, TaskNotFoundError
-from .serializers import (
+from tasks.exceptions import AssigneeNotFoundError, TaskNotFoundError
+from tasks.serializers import (
     ErrorSerializer,
     TaskCreateResponseSerializer,
     TaskCreateSerializer,
@@ -20,7 +20,7 @@ from .serializers import (
     TaskSerializer,
     TaskUpdateSerializer,
 )
-from .services import TaskService
+from tasks.services import TaskService
 
 
 class TaskListView(QueryParamsAPIView, BodyAPIView):

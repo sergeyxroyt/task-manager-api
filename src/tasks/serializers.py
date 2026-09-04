@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from common.serializers import paginated_serializer
 
-from .models import Task
+from tasks.models import Task
 
 
 class TaskSerializer(serializers.ModelSerializer[Task]):

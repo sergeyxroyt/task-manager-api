@@ -2,7 +2,7 @@ from typing import Any, TypeVar
 
 from rest_framework.serializers import IntegerField, Serializer
 
-from .pagination import PaginatedDTO, PaginationDTO
+from common.pagination import PaginatedDTO, PaginationDTO
 
 
 class PaginationSerializer(Serializer[PaginationDTO]):

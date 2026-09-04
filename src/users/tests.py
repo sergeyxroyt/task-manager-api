@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from .repositories import UserRepository
+from users.repositories import UserRepository
 
 
 class DefaultTestUser:

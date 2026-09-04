@@ -13,10 +13,10 @@ from tasks.models import Task
 from users.models import User
 from users.tests import DefaultTestUser
 
-from .models import Comment
-from .repositories import CommentRepository
-from .services import CommentService
-from .views import CommentListView
+from comments.models import Comment
+from comments.repositories import CommentRepository
+from comments.services import CommentService
+from comments.views import CommentListView
 
 
 class DefaultTestComment:

@@ -1,7 +1,14 @@
 import os
 import sys
+from pathlib import Path
 
 from testcontainers.community.postgres import PostgresContainer
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+SRC_ROOT = PROJECT_ROOT / "src"
+TEST_APPS = ("users", "tasks", "comments")
+sys.path.insert(0, str(SRC_ROOT))
 
 
 def main() -> None:
@@ -13,7 +20,7 @@ def main() -> None:
     ) as postgres:
         os.environ.update(
             {
-                "SECRET_KEY": "ci-test-secret-key",
+                "SECRET_KEY": "ci-test-secret-key-with-at-least-32-bytes",
                 "DEBUG": "false",
                 "ALLOWED_HOSTS": "localhost",
                 "POSTGRES_DB": "test_db",
@@ -28,7 +35,9 @@ def main() -> None:
 
         from django.core.management import execute_from_command_line
 
-        execute_from_command_line(["manage.py", "test", *sys.argv[1:]])
+        execute_from_command_line(
+            ["manage.py", "test", *TEST_APPS, *sys.argv[1:]]
+        )
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@ from common.pagination import PaginatedDTO
 from users.models import User
 from tasks.repositories import TaskRepository
 
-from .models import Comment
-from .repositories import CommentRepository
+from comments.models import Comment
+from comments.repositories import CommentRepository
 
 
 class CommentService:

@@ -5,9 +5,9 @@ from common.pagination import PaginatedDTO
 from users.models import User
 from users.repositories import UserRepository
 
-from .exceptions import AssigneeNotFoundError
-from .models import Task
-from .repositories import TaskRepository
+from tasks.exceptions import AssigneeNotFoundError
+from tasks.models import Task
+from tasks.repositories import TaskRepository
 
 
 class TaskService:

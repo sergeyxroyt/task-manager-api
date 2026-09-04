@@ -3,8 +3,8 @@ from collections.abc import Sequence
 from common.pagination import PaginatedDTO, build_pagination
 from users.models import User
 
-from .exceptions import TaskNotFoundError
-from .models import Task
+from tasks.exceptions import TaskNotFoundError
+from tasks.models import Task
 
 
 class TaskRepository:

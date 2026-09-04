@@ -16,13 +16,13 @@ typecheck:
 	uv run mypy
 
 makemigrations:
-	uv run python src/manage.py makemigrations
+	uv run python manage.py makemigrations
 
 migrate:
-	uv run python src/manage.py migrate
+	uv run python manage.py migrate
 
 dev-run:
-	uv run python src/manage.py runserver
+	uv run python manage.py runserver
 
 dev-docker-up:
 	docker compose --env-file .env -f $(COMPOSE_FILE) build
@@ -33,4 +33,4 @@ dev-docker-down:
 	docker compose --env-file .env -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT_NAME) down
 
 test:
-	cd src && uv run python run_tests.py
+	uv run python run_tests.py

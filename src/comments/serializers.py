@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from common.serializers import paginated_serializer
 
-from .models import Comment
+from comments.models import Comment
 
 
 class CommentCreateSerializer(serializers.Serializer[dict[str, str]]):

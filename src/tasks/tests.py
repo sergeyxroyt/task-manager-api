@@ -13,11 +13,11 @@ from unittest.mock import Mock, patch
 
 from common.pagination import PaginatedDTO, PaginationDTO
 
-from .exceptions import AssigneeNotFoundError, TaskNotFoundError
-from .models import Task
-from .repositories import TaskRepository
-from .services import TaskService
-from .views import TaskListView
+from tasks.exceptions import AssigneeNotFoundError, TaskNotFoundError
+from tasks.models import Task
+from tasks.repositories import TaskRepository
+from tasks.services import TaskService
+from tasks.views import TaskListView
 from users.models import User
 
 from users.tests import DefaultTestUser

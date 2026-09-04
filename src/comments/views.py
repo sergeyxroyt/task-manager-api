@@ -12,13 +12,13 @@ from tasks.exceptions import TaskNotFoundError
 from tasks.serializers import ErrorSerializer
 from users.models import User
 
-from .serializers import (
+from comments.serializers import (
     CommentCreateResponseSerializer,
     CommentCreateSerializer,
     CommentListQuerySerializer,
     CommentListResponseSerializer,
 )
-from .services import CommentService
+from comments.services import CommentService
 
 
 class CommentListView(QueryParamsAPIView, BodyAPIView):

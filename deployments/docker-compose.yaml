@@ -31,7 +31,7 @@ services:
     build:
       context: ..
       dockerfile: deployments/Dockerfile
-    command: [ "uv", "run", "python", "src/manage.py", "migrate", "--noinput" ]
+    command: [ "uv", "run", "python", "manage.py", "migrate", "--noinput" ]
     environment:
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-false}
