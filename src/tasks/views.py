@@ -5,7 +5,6 @@ from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from common.views import BodyAPIView, QueryParamsAPIView
@@ -19,6 +18,7 @@ from .serializers import (
     TaskListQuerySerializer,
     TaskListResponseSerializer,
     TaskSerializer,
+    TaskUpdateSerializer,
 )
 from .services import TaskService
 
@@ -86,8 +86,9 @@ class TaskListView(QueryParamsAPIView, BodyAPIView):
         )
 
 
-class TaskDetailView(APIView):
+class TaskDetailView(BodyAPIView):
     permission_classes = [IsAuthenticated]
+    body_serializer_class = TaskUpdateSerializer
 
     def __init__(self, **kwargs: object) -> None:
         super().__init__(**kwargs)
@@ -107,3 +108,39 @@ class TaskDetailView(APIView):
             raise NotFound("Task not found.")
 
         return Response(TaskSerializer(task).data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=TaskUpdateSerializer,
+        responses={
+            204: None,
+            400: OpenApiResponse(response=ErrorSerializer, description="Invalid body"),
+            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            404: OpenApiResponse(response=ErrorSerializer, description="Not found"),
+        },
+    )
+    def patch(self, request: Request, task_id: int) -> Response:
+        body = self.get_body(request)
+
+        try:
+            self.service.update(task_id=task_id, **body)
+        except TaskNotFoundError:
+            raise NotFound("Task not found.")
+        except AssigneeNotFoundError:
+            raise NotFound("Assignee not found.")
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        responses={
+            204: None,
+            401: OpenApiResponse(response=ErrorSerializer, description="Unauthorized"),
+            404: OpenApiResponse(response=ErrorSerializer, description="Not found"),
+        },
+    )
+    def delete(self, request: Request, task_id: int) -> Response:
+        try:
+            self.service.delete(task_id=task_id)
+        except TaskNotFoundError:
+            raise NotFound("Task not found.")
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

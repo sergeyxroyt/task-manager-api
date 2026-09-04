@@ -45,3 +45,12 @@ class TaskRepository:
             return Task.objects.get(pk=task_id)
         except Task.DoesNotExist as exc:
             raise TaskNotFoundError from exc
+
+    def update(self, *, task: Task, **fields: str | int | None) -> None:
+        for field, value in fields.items():
+            setattr(task, field, value)
+
+        task.save(update_fields=[*fields, "updated_at"])
+
+    def delete(self, *, task: Task) -> None:
+        task.delete()

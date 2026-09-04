@@ -100,6 +100,26 @@ class TaskRepositoryTests(SimpleTestCase):
 
         get_task.assert_called_once_with(pk=42)
 
+    @patch("tasks.repositories.Task.save")
+    def test_update_saves_only_changed_fields(self, save_task: Mock) -> None:
+        task = Task(id=42, title="Old title", status=Task.Status.TODO)
+
+        TaskRepository().update(task=task, title="New title", status=Task.Status.DONE)
+
+        self.assertEqual(task.title, "New title")
+        self.assertEqual(task.status, Task.Status.DONE)
+        save_task.assert_called_once_with(
+            update_fields=["title", "status", "updated_at"]
+        )
+
+    @patch("tasks.repositories.Task.delete")
+    def test_delete_deletes_task(self, delete_task: Mock) -> None:
+        task = Task(id=42, title="Task")
+
+        TaskRepository().delete(task=task)
+
+        delete_task.assert_called_once_with()
+
 
 class TaskServiceTests(SimpleTestCase):
     @patch("tasks.services.TaskRepository")
@@ -202,6 +222,76 @@ class TaskServiceTests(SimpleTestCase):
 
         repository.get_by_id.assert_called_once_with(42)
 
+    @patch("tasks.services.UserRepository")
+    @patch("tasks.services.TaskRepository")
+    def test_update_validates_task_and_assignee_and_updates(
+        self, repository_class: Mock, user_repository_class: Mock
+    ) -> None:
+        task = Task(id=42, title="Old title")
+        repository = repository_class.return_value
+        repository.get_by_id.return_value = task
+        user_repository_class.return_value.is_exists.return_value = True
+
+        TaskService().update(task_id=42, title="New title", assignee_id=8)
+
+        repository.get_by_id.assert_called_once_with(42)
+        user_repository_class.return_value.is_exists.assert_called_once_with(8)
+        repository.update.assert_called_once_with(
+            task=task, title="New title", assignee_id=8
+        )
+
+    @patch("tasks.services.UserRepository")
+    @patch("tasks.services.TaskRepository")
+    def test_update_rejects_missing_assignee(
+        self, repository_class: Mock, user_repository_class: Mock
+    ) -> None:
+        repository = repository_class.return_value
+        repository.get_by_id.return_value = Task(id=42, title="Task")
+        user_repository_class.return_value.is_exists.return_value = False
+
+        with self.assertRaises(AssigneeNotFoundError):
+            TaskService(repository=repository).update(task_id=42, assignee_id=8)
+
+        repository.update.assert_not_called()
+
+    @patch("tasks.services.UserRepository")
+    @patch("tasks.services.TaskRepository")
+    def test_update_propagates_missing_task(
+        self, repository_class: Mock, user_repository_class: Mock
+    ) -> None:
+        repository = repository_class.return_value
+        repository.get_by_id.side_effect = TaskNotFoundError
+
+        with self.assertRaises(TaskNotFoundError):
+            TaskService(repository=repository).update(task_id=42, title="Updated")
+
+        user_repository_class.return_value.is_exists.assert_not_called()
+        repository.update.assert_not_called()
+
+    @patch("tasks.services.TaskRepository")
+    def test_delete_checks_task_exists_and_deletes_it(
+        self, repository_class: Mock
+    ) -> None:
+        task = Task(id=42, title="Task")
+        repository = repository_class.return_value
+        repository.get_by_id.return_value = task
+
+        TaskService().delete(task_id=42)
+
+        repository.get_by_id.assert_called_once_with(42)
+        repository.delete.assert_called_once_with(task=task)
+
+    @patch("tasks.services.TaskRepository")
+    def test_delete_propagates_missing_task(self, repository_class: Mock) -> None:
+        repository = repository_class.return_value
+        repository.get_by_id.side_effect = TaskNotFoundError
+
+        with self.assertRaises(TaskNotFoundError):
+            TaskService().delete(task_id=42)
+
+        repository.get_by_id.assert_called_once_with(42)
+        repository.delete.assert_not_called()
+
 
 class TaskDetailApiTests(TestCase):
     user: ClassVar[User]
@@ -246,6 +336,120 @@ class TaskDetailApiTests(TestCase):
 
     def test_unauthenticated_user_returns_401(self) -> None:
         response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_patch_all_task_fields(self) -> None:
+        self.client.force_authenticate(user=self.user)
+        assignee = get_user_model().objects.create_user(
+            username="patch-assignee", password="test-password"
+        )
+
+        response = self.client.patch(
+            self.url,
+            {
+                "title": "Updated title",
+                "description": "Updated description",
+                "status": Task.Status.DONE,
+                "assignee_id": assignee.pk,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.content, b"")
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, "Updated title")
+        self.assertEqual(self.task.description, "Updated description")
+        self.assertEqual(self.task.status, Task.Status.DONE)
+        self.assertEqual(self.task.assignee_id, assignee.pk)
+
+    def test_patch_without_assignee_leaves_existing_assignee_unchanged(self) -> None:
+        self.client.force_authenticate(user=self.user)
+        assignee = get_user_model().objects.create_user(
+            username="existing-assignee", password="test-password"
+        )
+        self.task.assignee = assignee
+        self.task.save(update_fields=["assignee"])
+
+        response = self.client.patch(
+            self.url, {"title": "Updated title"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.assignee_id, assignee.pk)
+
+    def test_patch_with_null_assignee_removes_existing_assignee(self) -> None:
+        self.client.force_authenticate(user=self.user)
+        assignee = get_user_model().objects.create_user(
+            username="remove-assignee", password="test-password"
+        )
+        self.task.assignee = assignee
+        self.task.save(update_fields=["assignee"])
+
+        response = self.client.patch(self.url, {"assignee_id": None}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.task.refresh_from_db()
+        self.assertIsNone(self.task.assignee_id)
+
+    def test_patch_rejects_invalid_body(self) -> None:
+        invalid_bodies = (
+            {"title": "x" * 256},
+            {"status": "missing"},
+            {"assignee_id": 0},
+            {"assignee_id": "invalid"},
+        )
+
+        self.client.force_authenticate(user=self.user)
+        for body in invalid_bodies:
+            with self.subTest(body=body):
+                response = self.client.patch(self.url, body, format="json")
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_missing_task_returns_404(self) -> None:
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            "/api/tasks/999999/", {"title": "Updated"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Task not found.")
+
+    def test_patch_missing_assignee_returns_404(self) -> None:
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(self.url, {"assignee_id": 999999}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Assignee not found.")
+
+    def test_unauthenticated_user_cannot_patch_task(self) -> None:
+        response = self.client.patch(self.url, {"title": "Updated"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_delete_task(self) -> None:
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.content, b"")
+        self.assertFalse(Task.objects.filter(pk=self.task.pk).exists())
+
+    def test_delete_missing_task_returns_404(self) -> None:
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete("/api/tasks/999999/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Task not found.")
+
+    def test_unauthenticated_user_cannot_delete_task(self) -> None:
+        response = self.client.delete(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
