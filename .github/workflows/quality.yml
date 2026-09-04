@@ -29,6 +29,15 @@ jobs:
         run: uv sync --dev --frozen
 
       - name: Run typecheck
+        # These are deliberately fake values: mypy-django imports config.settings,
+        # but type checking does not connect to the database or need real secrets.
+        env:
+          SECRET_KEY: ci-fake-secret-key-not-for-production
+          POSTGRES_DB: ci_fake_db
+          POSTGRES_USER: ci_fake_user
+          POSTGRES_PASSWORD: ci-fake-password
+          POSTGRES_HOST: ci-fake-host
+          POSTGRES_PORT: "5432"
         run: make typecheck
 
   linter:
