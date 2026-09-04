@@ -27,6 +27,7 @@ class TaskService:
         user: User,
         assignee_id: int | None = None,
     ) -> Task:
+        """Create a task after validating its optional assignee."""
         if assignee_id is not None and not self.user_repository.is_exists(
             assignee_id
         ):
@@ -56,6 +57,11 @@ class TaskService:
         return self.repository.get_by_id(task_id)
 
     def update(self, *, task_id: int, **fields: str | int | None) -> None:
+        """Update supplied fields and validate an optional assignee.
+
+        An omitted ``assignee_id`` preserves the current assignee, while
+        ``assignee_id=None`` explicitly removes the assignment.
+        """
         task = self.repository.get_by_id(task_id)
 
         assignee_id = fields.get("assignee_id")

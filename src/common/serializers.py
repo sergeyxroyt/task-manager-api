@@ -18,7 +18,7 @@ SerializerT = TypeVar("SerializerT", bound=Serializer[Any])
 def paginated_serializer(
     item_serializer: type[SerializerT],
 ) -> type[Serializer[Any]]:
-    """Build a response serializer for any ``PaginatedDTO`` item type."""
+    """Create a serializer with ``data`` and ``pagination`` fields."""
 
     class PaginatedResponseSerializer(Serializer[PaginatedDTO[Any]]):
         data = item_serializer(many=True)  # type: ignore[assignment]

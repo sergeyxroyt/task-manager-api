@@ -20,6 +20,7 @@ class PaginatedDTO(Generic[ItemT]):
 
 
 def build_pagination(*, limit: int, offset: int, total: int) -> PaginationDTO:
+    """Build metadata for offset pagination with one-based page numbering."""
     return PaginationDTO(
         page=offset // limit + 1,
         per_page=limit,

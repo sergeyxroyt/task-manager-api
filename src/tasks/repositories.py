@@ -30,6 +30,7 @@ class TaskRepository:
         offset: int,
         statuses: Sequence[str] = (),
     ) -> PaginatedDTO[Task]:
+        """Return filtered tasks together with offset-pagination metadata."""
         queryset = Task.objects.all()
         if statuses:
             queryset = queryset.filter(status__in=statuses)
@@ -45,12 +46,14 @@ class TaskRepository:
         )
 
     def get_by_id(self, task_id: int) -> Task:
+        """Return a task or raise a domain-level not-found exception."""
         try:
             return Task.objects.get(pk=task_id)
         except Task.DoesNotExist as exc:
             raise TaskNotFoundError from exc
 
     def update(self, *, task: Task, **fields: str | int | None) -> None:
+        """Save only supplied task fields and refresh ``updated_at``."""
         for field, value in fields.items():
             setattr(task, field, value)
 

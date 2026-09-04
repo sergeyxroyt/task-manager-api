@@ -73,6 +73,7 @@ class TaskListQuerySerializer(serializers.Serializer[dict[str, object]]):
     )
 
     def to_internal_value(self, data: Any) -> dict[str, object]:
+        """Normalize repeated and comma-separated status query parameters."""
         if hasattr(data, "getlist"):
             query_params = data.copy()
             raw_statuses = query_params.getlist("status")

@@ -16,6 +16,7 @@ class CommentService:
         self.task_repository = task_repository or TaskRepository()
 
     def create(self, *, task_id: int, author: User, content: str) -> Comment:
+        """Create a comment after ensuring that its task exists."""
         self.task_repository.get_by_id(task_id)
         return self.repository.create(
             task_id=task_id,
@@ -26,6 +27,7 @@ class CommentService:
     def list_by_task(
         self, *, task_id: int, limit: int, offset: int
     ) -> PaginatedDTO[Comment]:
+        """Return a task's comments after validating that the task exists."""
         self.task_repository.get_by_id(task_id)
         return self.repository.list_by_task(
             task_id=task_id,
