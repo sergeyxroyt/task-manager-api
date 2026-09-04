@@ -1,0 +1,63 @@
+from collections.abc import Sequence
+
+from common.pagination import PaginatedDTO, build_pagination
+from users.models import User
+
+from tasks.exceptions import TaskNotFoundError
+from tasks.models import Task
+
+
+class TaskRepository:
+    def create(
+        self,
+        *,
+        title: str,
+        description: str,
+        creator: User,
+        assignee_id: int | None = None,
+    ) -> Task:
+        return Task.objects.create(
+            title=title,
+            description=description,
+            creator=creator,
+            assignee_id=assignee_id,
+        )
+
+    def list(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        statuses: Sequence[str] = (),
+    ) -> PaginatedDTO[Task]:
+        """Return filtered tasks together with offset-pagination metadata."""
+        queryset = Task.objects.all()
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+
+        total = queryset.count()
+        return PaginatedDTO(
+            data=list(queryset[offset : offset + limit]),
+            pagination=build_pagination(
+                limit=limit,
+                offset=offset,
+                total=total,
+            ),
+        )
+
+    def get_by_id(self, task_id: int) -> Task:
+        """Return a task or raise a domain-level not-found exception."""
+        try:
+            return Task.objects.get(pk=task_id)
+        except Task.DoesNotExist as exc:
+            raise TaskNotFoundError from exc
+
+    def update(self, *, task: Task, **fields: str | int | None) -> None:
+        """Save only supplied task fields and refresh ``updated_at``."""
+        for field, value in fields.items():
+            setattr(task, field, value)
+
+        task.save(update_fields=[*fields, "updated_at"])
+
+    def delete(self, *, task: Task) -> None:
+        task.delete()
