@@ -12,6 +12,16 @@ available at `/api/schema/openapi`.
 - Mark tasks as completed.
 - Comment on tasks.
 
+## Task statuses
+
+Tasks can have one of the following statuses:
+
+| Value | Description |
+| --- | --- |
+| `todo` | To do. |
+| `in_progress` | In progress. |
+| `done` | Done. |
+
 ## Endpoints
 
 Most API endpoints require JWT authentication.
